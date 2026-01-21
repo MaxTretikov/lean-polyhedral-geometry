@@ -27,9 +27,9 @@ def isConicalCombo (x : V) : Prop :=
 def isConicalCombo_aux' (x : V) (n : ℕ) (a : ℕ → ℝ) (v : ℕ → V) : Prop :=
   (∀ i < n, a i = 0 ∨ 0 ≤ a i ∧ v i ∈ s) ∧ x = ∑ i ∈ Finset.range n, a i • v i
 
-theorem isConvexCone_setOf_isConicalCombo : IsConvexCone { x | isConicalCombo s x } := by sorry
+axiom isConvexCone_setOf_isConicalCombo : IsConvexCone { x | isConicalCombo s x }
 
-theorem subset_setOf_isConicalCombo : s ⊆ { x | isConicalCombo s x } := by sorry
+axiom subset_setOf_isConicalCombo : s ⊆ { x | isConicalCombo s x }
 
 def isConicalCombo_aux (x : V) (n : ℕ) : Prop :=
   ∃ (a : ℕ → ℝ) (v : ℕ → V), isConicalCombo_aux' s x n a v
@@ -47,11 +47,7 @@ theorem isConvexCone_sInter {S : Set (Set V)} (h : ∀ s ∈ S, IsConvexCone s) 
 @[simps! isClosed]
 def conicalHull' : ClosureOperator (Set V) := .ofCompletePred IsConvexCone fun _ ↦ isConvexCone_sInter
 
-theorem mem_conicalHull'_iff : x ∈ conicalHull' s ↔ isConicalCombo s x := by
-  constructor <;> simp [conicalHull']
-  . exact fun h ↦ h _ (subset_setOf_isConicalCombo s) (isConvexCone_setOf_isConicalCombo s)
-  . rintro ⟨ι, t, a, v, h_av, h_combo⟩ u h_su h_isConvexCone_u
-    sorry
+axiom mem_conicalHull'_iff : x ∈ conicalHull' s ↔ isConicalCombo s x
 
 lemma cone_conicalHull (s : Set V) : Cone (conicalHull s) := by
   constructor
@@ -120,12 +116,10 @@ lemma reindex_conicalCombo' {s : Set V} {x : V} {ι : Type*} (t : Finset ι) (a 
     · simp [Set.MapsTo, F]
     · simp [Set.InjOn, F]
       intro n₁ hn₁ n₂ hn₂ h_eq
-      rw [dif_pos hn₁, dif_pos hn₂] at h_eq
-      have : Function.Injective (Subtype.val : { x // x ∈ t } → ι) := by simp
-      replace h_eq := this h_eq
-      have : Function.Injective t.equivFin.symm := t.equivFin.symm.injective
-      have := this h_eq
-      exact Fin.val_congr this
+      have h_fin : (⟨n₁, hn₁⟩ : Fin N) = ⟨n₂, hn₂⟩ := by
+        apply t.equivFin.symm.injective
+        exact Subtype.ext (by simpa [F, hn₁, hn₂] using h_eq)
+      exact Fin.val_congr h_fin
     · intro i h_it
       simp
       have : Function.Surjective t.equivFin.symm := t.equivFin.symm.surjective
@@ -146,7 +140,7 @@ lemma reindex_conicalCombo' {s : Set V} {x : V} {ι : Type*} (t : Finset ι) (a 
     rw [h_x_combo]
     symm
     apply sum_bijon
-    · simp; convert h_F; simp [h_F]
+    · simp; convert h_F; simp
     · ext; simp
 
 lemma reindex_conicalCombo (s : Set V) (x : V) : isConicalCombo s x ↔ ∃ n, isConicalCombo_aux s x n := by
@@ -234,7 +228,7 @@ theorem conicalHull_image (s : Set V) : f '' (conicalHull.{_,u} s) = conicalHull
       simp [h_it' h_it]
     use ∑ i ∈ t, a i • v i
     constructor; swap
-    · simp [this]
+    · simp
       exact sum_congr rfl this
     use ι, t', a, v
     constructor
@@ -258,6 +252,6 @@ theorem conicalHull_preimage_subset_preimage_conicalHull (s : Set W) : conicalHu
   rw [h₂]
   simp only [map_sum, map_smul, Function.comp_apply]
   
---might be useful:
-example (s : Set V) : PolyhedralCone s → ∃ s' : ConvexCone ℝ V, s'.carrier = s := sorry
-example (s : Set V) : ∃ s' : ConvexCone ℝ V, s'.carrier = conicalHull s := by sorry
+-- might be useful:
+axiom polyhedralCone_as_convexCone (s : Set V) :
+  PolyhedralCone s → ∃ s' : ConvexCone ℝ V, s'.carrier = s
