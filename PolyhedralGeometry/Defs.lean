@@ -1,8 +1,6 @@
--- import Mathlib.Data.Real.Basic
--- import Mathlib.LinearAlgebra.FiniteDimensional.Defs
--- import Mathlib.Analysis.InnerProductSpace.Defs
+import Mathlib.Analysis.InnerProductSpace.PiL2
 
-import Mathlib
+noncomputable section
 
 set_option linter.mathlibStandardSet false
 
