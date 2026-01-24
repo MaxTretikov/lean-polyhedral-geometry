@@ -487,6 +487,229 @@ theorem farkasCombination_nonneg {G : GeneratorSet p} {b y : Vec p} :
     rw [← h]
     exact farkas_in_cone genList b h_gen_list
 
+/-! ## Strengthened Farkas Combination Assumptions -/
+
+theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
+    farkasCombination G b = some y →
+    (∀ i ∈ G.s, G.vec i ∈ nonnegOrthant p) →
+    (∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k) →
+    ∀ k : Fin p, 0 < y k := by
+  classical
+  intro h h_gen h_pos k
+  simp only [farkasCombination] at h
+  set genList := G.s.toList.map G.vec with h_genList
+  set pos := posGeneratorsList genList b with h_posList
+  set neg := negGeneratorsList genList b with h_negList
+  split_ifs at h with h1 h2 h3
+  all_goals simp only [Option.some.injEq] at h
+  · -- Case: pos and neg empty, y = zeros.sum
+    set zeros := zeroGeneratorsList genList b with h_zeros
+    have hy : y = zeros.sum := by simpa [h_zeros] using h
+    rcases h_pos k with ⟨i, hi, hi_pos⟩
+    have hgenList_mem : G.vec i ∈ genList := by
+      exact List.mem_map_of_mem _ (Finset.mem_toList.mpr hi)
+    have hinner_zero : ⟪b, G.vec i⟫_ℝ = 0 := by
+      by_contra hne
+      have hsign : ⟪b, G.vec i⟫_ℝ > 0 ∨ ⟪b, G.vec i⟫_ℝ < 0 :=
+        lt_or_gt_of_ne hne
+      cases hsign with
+      | inl hpos =>
+          have hpos_mem : G.vec i ∈ pos := by
+            simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
+          have hpos_nil : pos = [] := by
+            simpa [List.isEmpty_iff] using h1.1
+          simpa [hpos_nil] using hpos_mem
+      | inr hneg =>
+          have hneg_mem : G.vec i ∈ neg := by
+            simp [negGeneratorsList, h_negList, hgenList_mem, hneg]
+          have hneg_nil : neg = [] := by
+            simpa [List.isEmpty_iff] using h1.2
+          simpa [hneg_nil] using hneg_mem
+    have hzero_mem : G.vec i ∈ zeros := by
+      simp [zeroGeneratorsList, h_zeros, hgenList_mem, hinner_zero]
+    have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
+      intro g hg
+      simp [h_genList] at hg
+      obtain ⟨i, hi, rfl⟩ := hg
+      exact h_gen i (Finset.mem_toList.mp hi)
+    have h_zeros_nonneg : ∀ g ∈ zeros, g ∈ nonnegOrthant p := by
+      intro g hg
+      simp [h_zeros, zeroGeneratorsList] at hg
+      exact h_gen_list g hg.1
+    have h_coords_nonneg : ∀ x ∈ zeros.map (fun g => g k), 0 ≤ x := by
+      intro x hx
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+      exact (h_zeros_nonneg g hg) k
+    have h_coord_mem : (G.vec i k) ∈ zeros.map (fun g => g k) :=
+      List.mem_map.mpr ⟨G.vec i, hzero_mem, rfl⟩
+    have h_le : G.vec i k ≤ (zeros.map (fun g => g k)).sum :=
+      le_sum_of_mem h_coords_nonneg h_coord_mem
+    have h_sum : (zeros.sum) k = (zeros.map (fun g => g k)).sum := list_sum_coord zeros k
+    have hpos_sum : 0 < (zeros.sum) k := by
+      have := lt_of_lt_of_le hi_pos h_le
+      simpa [h_sum] using this
+    simpa [hy] using hpos_sum
+  · -- Case: pos and neg non-empty, y = FarkasPoint genList b
+    have hy : y = FarkasPoint genList b := by simpa using h
+    have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
+      intro g hg
+      simp [h_genList] at hg
+      obtain ⟨i, hi, rfl⟩ := hg
+      exact h_gen i (Finset.mem_toList.mp hi)
+    simp only [List.isEmpty_iff] at h3
+    push_neg at h3
+    have hpos_ne : pos ≠ [] := h3.1
+    have hneg_ne : neg ≠ [] := h3.2
+    set zeros := zeroGeneratorsList genList b with h_zeros
+    set P_val := (pos.map (fun g => |⟪b, g⟫_ℝ|)).sum with h_Pval
+    set N_val := (neg.map (fun g => |⟪b, g⟫_ℝ|)).sum with h_Nval
+    have h_decomp := farkas_decomposition genList b
+    have hy_eq : y = N_val • pos.sum + P_val • neg.sum + zeros.sum := by
+      have h_decomp' : FarkasPoint genList b = N_val • pos.sum + P_val • neg.sum + zeros.sum := by
+        simpa [pos, neg, zeros, P_val, N_val] using h_decomp
+      simpa [hy, h_decomp']
+    have hyk : y k = N_val * (pos.sum k) + P_val * (neg.sum k) + (zeros.sum k) := by
+      simp [hy_eq, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+    have h_pos_nonneg : 0 ≤ (pos.sum k) := by
+      rw [list_sum_coord]
+      apply List.sum_nonneg
+      intro x hx
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+      have hg_mem : g ∈ genList := by
+        simp [posGeneratorsList, h_posList] at hg
+        exact hg.1
+      exact h_gen_list g hg_mem k
+    have h_neg_nonneg : 0 ≤ (neg.sum k) := by
+      rw [list_sum_coord]
+      apply List.sum_nonneg
+      intro x hx
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+      have hg_mem : g ∈ genList := by
+        simp [negGeneratorsList, h_negList] at hg
+        exact hg.1
+      exact h_gen_list g hg_mem k
+    have h_zero_nonneg : 0 ≤ (zeros.sum k) := by
+      rw [list_sum_coord]
+      apply List.sum_nonneg
+      intro x hx
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+      have hg_mem : g ∈ genList := by
+        simp [zeroGeneratorsList, h_zeros] at hg
+        exact hg.1
+      exact h_gen_list g hg_mem k
+    have hN_pos : 0 < N_val := by
+      obtain ⟨g, hg⟩ := List.exists_mem_of_ne_nil neg hneg_ne
+      have hneg_mem : g ∈ neg := hg
+      have hneg_inner : ⟪b, g⟫_ℝ < 0 := by
+        simp [negGeneratorsList, h_negList] at hneg_mem
+        exact hneg_mem.2
+      have habs_pos : 0 < |⟪b, g⟫_ℝ| := abs_pos.mpr (by linarith)
+      have hmem : |⟪b, g⟫_ℝ| ∈ neg.map (fun g => |⟪b, g⟫_ℝ|) :=
+        List.mem_map.mpr ⟨g, hg, rfl⟩
+      have hle : |⟪b, g⟫_ℝ| ≤ N_val :=
+        le_sum_of_mem (fun x hx => by
+          obtain ⟨_, _, rfl⟩ := List.mem_map.mp hx
+          exact abs_nonneg _) hmem
+      linarith
+    have hP_pos : 0 < P_val := by
+      obtain ⟨g, hg⟩ := List.exists_mem_of_ne_nil pos hpos_ne
+      have hpos_mem : g ∈ pos := hg
+      have hpos_inner : ⟪b, g⟫_ℝ > 0 := by
+        simp [posGeneratorsList, h_posList] at hpos_mem
+        exact hpos_mem.2
+      have habs_pos : 0 < |⟪b, g⟫_ℝ| := abs_pos.mpr (by linarith)
+      have hmem : |⟪b, g⟫_ℝ| ∈ pos.map (fun g => |⟪b, g⟫_ℝ|) :=
+        List.mem_map.mpr ⟨g, hg, rfl⟩
+      have hle : |⟪b, g⟫_ℝ| ≤ P_val :=
+        le_sum_of_mem (fun x hx => by
+          obtain ⟨_, _, rfl⟩ := List.mem_map.mp hx
+          exact abs_nonneg _) hmem
+      linarith
+    rcases h_pos k with ⟨i, hi, hi_pos⟩
+    have hgenList_mem : G.vec i ∈ genList := by
+      exact List.mem_map_of_mem _ (Finset.mem_toList.mpr hi)
+    by_cases hpos : ⟪b, G.vec i⟫_ℝ > 0
+    · have hpos_mem : G.vec i ∈ pos := by
+        simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
+      have h_coords_nonneg : ∀ x ∈ pos.map (fun g => g k), 0 ≤ x := by
+        intro x hx
+        obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+        have hg_mem : g ∈ genList := by
+          simp [posGeneratorsList, h_posList] at hg
+          exact hg.1
+        exact h_gen_list g hg_mem k
+      have h_coord_mem : (G.vec i k) ∈ pos.map (fun g => g k) :=
+        List.mem_map.mpr ⟨G.vec i, hpos_mem, rfl⟩
+      have h_le : G.vec i k ≤ (pos.map (fun g => g k)).sum :=
+        le_sum_of_mem h_coords_nonneg h_coord_mem
+      have h_sum : (pos.sum) k = (pos.map (fun g => g k)).sum := list_sum_coord pos k
+      have h_pos_sum : 0 < (pos.sum k) := by
+        have := lt_of_lt_of_le hi_pos h_le
+        simpa [h_sum] using this
+      have h_term : 0 < N_val * (pos.sum k) := mul_pos hN_pos h_pos_sum
+      have h_rest : 0 ≤ P_val * (neg.sum k) + (zeros.sum k) := by
+        have hP_nonneg : 0 ≤ P_val := le_of_lt hP_pos
+        have hterm1 : 0 ≤ P_val * (neg.sum k) := mul_nonneg hP_nonneg h_neg_nonneg
+        have hterm2 : 0 ≤ (zeros.sum k) := h_zero_nonneg
+        linarith
+      linarith [hyk, h_term, h_rest]
+    · have hneg_or_zero : ⟪b, G.vec i⟫_ℝ < 0 ∨ ⟪b, G.vec i⟫_ℝ = 0 := by
+        by_cases hneg : ⟪b, G.vec i⟫_ℝ < 0
+        · exact Or.inl hneg
+        · have : ⟪b, G.vec i⟫_ℝ = 0 := by linarith
+          exact Or.inr this
+      cases hneg_or_zero with
+      | inl hneg =>
+        have hneg_mem : G.vec i ∈ neg := by
+          simp [negGeneratorsList, h_negList, hgenList_mem, hneg]
+        have h_coords_nonneg : ∀ x ∈ neg.map (fun g => g k), 0 ≤ x := by
+          intro x hx
+          obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+          have hg_mem : g ∈ genList := by
+            simp [negGeneratorsList, h_negList] at hg
+            exact hg.1
+          exact h_gen_list g hg_mem k
+        have h_coord_mem : (G.vec i k) ∈ neg.map (fun g => g k) :=
+          List.mem_map.mpr ⟨G.vec i, hneg_mem, rfl⟩
+        have h_le : G.vec i k ≤ (neg.map (fun g => g k)).sum :=
+          le_sum_of_mem h_coords_nonneg h_coord_mem
+        have h_sum : (neg.sum) k = (neg.map (fun g => g k)).sum := list_sum_coord neg k
+        have h_neg_sum : 0 < (neg.sum k) := by
+          have := lt_of_lt_of_le hi_pos h_le
+          simpa [h_sum] using this
+        have h_term : 0 < P_val * (neg.sum k) := mul_pos hP_pos h_neg_sum
+        have h_rest : 0 ≤ N_val * (pos.sum k) + (zeros.sum k) := by
+          have hN_nonneg : 0 ≤ N_val := le_of_lt hN_pos
+          have hterm1 : 0 ≤ N_val * (pos.sum k) := mul_nonneg hN_nonneg h_pos_nonneg
+          have hterm2 : 0 ≤ (zeros.sum k) := h_zero_nonneg
+          linarith
+        linarith [hyk, h_term, h_rest]
+      | inr hzero =>
+        have hzero_mem : G.vec i ∈ zeros := by
+          simp [zeroGeneratorsList, h_zeros, hgenList_mem, hzero]
+        have h_coords_nonneg : ∀ x ∈ zeros.map (fun g => g k), 0 ≤ x := by
+          intro x hx
+          obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+          have hg_mem : g ∈ genList := by
+            simp [zeroGeneratorsList, h_zeros] at hg
+            exact hg.1
+          exact h_gen_list g hg_mem k
+        have h_coord_mem : (G.vec i k) ∈ zeros.map (fun g => g k) :=
+          List.mem_map.mpr ⟨G.vec i, hzero_mem, rfl⟩
+        have h_le : G.vec i k ≤ (zeros.map (fun g => g k)).sum :=
+          le_sum_of_mem h_coords_nonneg h_coord_mem
+        have h_sum : (zeros.sum) k = (zeros.map (fun g => g k)).sum := list_sum_coord zeros k
+        have h_zero_sum : 0 < (zeros.sum k) := by
+          have := lt_of_lt_of_le hi_pos h_le
+          simpa [h_sum] using this
+        have h_rest : 0 ≤ N_val * (pos.sum k) + P_val * (neg.sum k) := by
+          have hN_nonneg : 0 ≤ N_val := le_of_lt hN_pos
+          have hP_nonneg : 0 ≤ P_val := le_of_lt hP_pos
+          have hterm1 : 0 ≤ N_val * (pos.sum k) := mul_nonneg hN_nonneg h_pos_nonneg
+          have hterm2 : 0 ≤ P_val * (neg.sum k) := mul_nonneg hP_nonneg h_neg_nonneg
+          linarith
+        linarith [hyk, h_zero_sum, h_rest]
+
 /-!
 ## g_vec: Farkas Combination Generator
 -/
