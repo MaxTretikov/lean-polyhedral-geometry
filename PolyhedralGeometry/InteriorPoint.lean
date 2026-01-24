@@ -29,16 +29,6 @@ namespace InteriorPoint
 
 variable {p : ℕ}
 
-/-- Filter generators by sign of inner product with constraint vector b. -/
-def posGeneratorsList (G : List (Vec p)) (b : Vec p) : List (Vec p) :=
-  G.filter (fun g => ⟪b, g⟫_ℝ > 0)
-
-def negGeneratorsList (G : List (Vec p)) (b : Vec p) : List (Vec p) :=
-  G.filter (fun g => ⟪b, g⟫_ℝ < 0)
-
-def zeroGeneratorsList (G : List (Vec p)) (b : Vec p) : List (Vec p) :=
-  G.filter (fun g => ⟪b, g⟫_ℝ = 0)
-
 /-- The Farkas Point: sums over ALL pairs of positive/negative generators
     (weighted to cancel inner product with b) plus all zero generators. -/
 def FarkasPoint (G : List (Vec p)) (b : Vec p) : Vec p :=
@@ -496,5 +486,41 @@ theorem farkasCombination_nonneg {G : GeneratorSet p} {b y : Vec p} :
   · -- Case: pos and neg are non-empty, y = FarkasPoint genList b
     rw [← h]
     exact farkas_in_cone genList b h_gen_list
+
+/-!
+## g_vec: Farkas Combination Generator
+-/
+
+/-- The Farkas combination generator: |b_j| • e_i + |b_i| • e_j.
+    This vector lies in the hyperplane ⟪b, ·⟫ = 0 when b_i > 0 and b_j < 0. -/
+def g_vec (b : Vec p) (i j : Fin p) : Vec p :=
+  |b j| • EuclideanSpace.basisFun (Fin p) ℝ i + |b i| • EuclideanSpace.basisFun (Fin p) ℝ j
+
+lemma g_vec_orthogonal (b : Vec p) (i j : Fin p) (hi : b i > 0) (hj : b j < 0) :
+    ⟪b, g_vec b i j⟫_ℝ = 0 := by
+  simp only [g_vec, inner_add_right, real_inner_smul_right,
+    EuclideanSpace.inner_basisFun_real, abs_of_pos hi, abs_of_neg hj]
+  ring
+
+lemma g_vec_component_i (b : Vec p) (i j : Fin p) (hij : i ≠ j) :
+    (g_vec b i j) i = |b j| := by
+  simp only [g_vec, EuclideanSpace.basisFun_apply, PiLp.add_apply, PiLp.smul_apply,
+    EuclideanSpace.single_apply, smul_eq_mul, if_true, if_neg hij, mul_one, mul_zero, add_zero]
+
+lemma g_vec_component_j (b : Vec p) (i j : Fin p) (hij : i ≠ j) :
+    (g_vec b i j) j = |b i| := by
+  simp only [g_vec, EuclideanSpace.basisFun_apply, PiLp.add_apply, PiLp.smul_apply,
+    EuclideanSpace.single_apply, smul_eq_mul, if_neg hij.symm, if_true, mul_zero, zero_add, mul_one]
+
+lemma g_vec_component_k (b : Vec p) (i j k : Fin p) (hki : k ≠ i) (hkj : k ≠ j) :
+    (g_vec b i j) k = 0 := by
+  simp only [g_vec, EuclideanSpace.basisFun_apply, PiLp.add_apply, PiLp.smul_apply,
+    EuclideanSpace.single_apply, smul_eq_mul, if_neg hki, if_neg hkj, mul_zero, add_zero]
+
+lemma g_vec_nonneg (b : Vec p) (i j : Fin p) : g_vec b i j ∈ nonnegOrthant p := by
+  intro k
+  simp only [g_vec, EuclideanSpace.basisFun_apply, PiLp.add_apply, PiLp.smul_apply,
+    EuclideanSpace.single_apply, smul_eq_mul]
+  split_ifs <;> linarith [abs_nonneg (b j), abs_nonneg (b i)]
 
 end InteriorPoint
