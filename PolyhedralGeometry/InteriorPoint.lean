@@ -212,8 +212,7 @@ lemma inner_list_sum (b : Vec p) (L : List (Vec p)) :
 /-! ## Main Theorems -/
 
 /-- The Farkas Point lies in the hyperplane defined by b. -/
-theorem farkas_in_hyperplane (G : List (Vec p)) (b : Vec p)
-    (h_mixed : (∃ g ∈ G, ⟪b, g⟫_ℝ > 0) ∧ (∃ g ∈ G, ⟪b, g⟫_ℝ < 0)) :
+theorem farkas_in_hyperplane (G : List (Vec p)) (b : Vec p) :
     ⟪b, FarkasPoint G b⟫_ℝ = 0 := by
   have h_decomp := farkas_decomposition G b
   rw [h_decomp, inner_add_right, inner_add_right, inner_smul_right, inner_smul_right]
@@ -444,17 +443,6 @@ theorem farkasCombination_in_hyperplane {G : GeneratorSet p} {b y : Vec p} :
     exact hg.2
   · rw [← h]
     apply farkas_in_hyperplane
-    simp only [List.isEmpty_iff] at h3
-    push_neg at h3
-    constructor
-    · obtain ⟨g, hg⟩ := List.exists_mem_of_ne_nil pos h3.1
-      rw [h_pos, posGeneratorsList] at hg
-      simp only [List.mem_filter, decide_eq_true_eq] at hg
-      exact ⟨g, hg.1, hg.2⟩
-    · obtain ⟨g, hg⟩ := List.exists_mem_of_ne_nil neg h3.2
-      rw [h_neg, negGeneratorsList] at hg
-      simp only [List.mem_filter, decide_eq_true_eq] at hg
-      exact ⟨g, hg.1, hg.2⟩
 
 /-- The Farkas combination produces a point in the cone. -/
 theorem farkasCombination_nonneg {G : GeneratorSet p} {b y : Vec p} :
@@ -520,13 +508,15 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
             simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
           have hpos_nil : pos = [] := by
             simpa [List.isEmpty_iff] using h1.1
-          simpa [hpos_nil] using hpos_mem
+          rw [hpos_nil] at hpos_mem
+          cases hpos_mem
       | inr hneg =>
           have hneg_mem : G.vec i ∈ neg := by
             simp [negGeneratorsList, h_negList, hgenList_mem, hneg]
           have hneg_nil : neg = [] := by
             simpa [List.isEmpty_iff] using h1.2
-          simpa [hneg_nil] using hneg_mem
+          rw [hneg_nil] at hneg_mem
+          cases hneg_mem
     have hzero_mem : G.vec i ∈ zeros := by
       simp [zeroGeneratorsList, h_zeros, hgenList_mem, hinner_zero]
     have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
@@ -550,7 +540,10 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
     have hpos_sum : 0 < (zeros.sum) k := by
       have := lt_of_lt_of_le hi_pos h_le
       simpa [h_sum] using this
-    simpa [hy] using hpos_sum
+    have hpos_sum' : 0 < y k := by
+      rw [hy]
+      exact hpos_sum
+    exact hpos_sum'
   · -- Case: pos and neg non-empty, y = FarkasPoint genList b
     have hy : y = FarkasPoint genList b := by simpa using h.symm
     have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
@@ -569,7 +562,7 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
     have hy_eq : y = N_val • pos.sum + P_val • neg.sum + zeros.sum := by
       have h_decomp' : FarkasPoint genList b = N_val • pos.sum + P_val • neg.sum + zeros.sum := by
         simpa [pos, neg, zeros, P_val, N_val] using h_decomp
-      simpa [hy, h_decomp']
+      simp [hy, h_decomp']
     have hyk : y k = N_val * (pos.sum k) + P_val * (neg.sum k) + (zeros.sum k) := by
       simp [hy_eq, PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
     have h_pos_nonneg : 0 ≤ (pos.sum k) := by

@@ -12,12 +12,13 @@ import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Data.Matrix.Basic
 import Mathlib.Data.Set.Card
 import Mathlib.Topology.Basic
+import Mathlib.Topology.Maps.Basic
 import Mathlib.LinearAlgebra.StdBasis
 
 noncomputable section
 
 open Matrix BigOperators
-open scoped BigOperators RealInnerProductSpace InnerProductSpace
+open scoped BigOperators RealInnerProductSpace InnerProductSpace ENNReal
 
 namespace PolyhedralGeometry
 
@@ -154,7 +155,28 @@ def IsInteriorPoint (y : Vec p) : Prop := y ∈ interior (nonnegOrthant p)
 /-- Equivalent characterization: all coordinates strictly positive. -/
 lemma isInteriorPoint_iff_all_pos (y : Vec p) :
     IsInteriorPoint y ↔ ∀ i : Fin p, 0 < y i := by
-  sorry  -- This requires showing interior of orthant = strict positivity
+  classical
+  have h_nonneg : nonnegOrthant p = ⋂ i : Fin p, {y : Vec p | 0 ≤ y i} := by
+    ext z
+    simp [nonnegOrthant]
+  have h_coord : ∀ i : Fin p, interior {y : Vec p | 0 ≤ y i} = {y : Vec p | 0 < y i} := by
+    intro i
+    have h_open : IsOpenMap (fun y : Vec p => y i) := by
+      simpa using
+        (PiLp.isOpenMap_apply (p := (2 : ℝ≥0∞)) (ι := Fin p) (β := fun _ : Fin p => ℝ) i)
+    have h_cont : Continuous (fun y : Vec p => y i) := by
+      simpa using
+        (PiLp.continuous_apply (p := (2 : ℝ≥0∞)) (ι := Fin p) (β := fun _ : Fin p => ℝ) i)
+    have h_pre :=
+      (IsOpenMap.preimage_interior_eq_interior_preimage (f := fun y : Vec p => y i) h_open h_cont
+        (Set.Ici (0 : ℝ))).symm
+    ext y
+    have hy := congrArg (fun s => y ∈ s) h_pre
+    simpa [Set.preimage, Set.mem_setOf_eq, interior_Ici] using hy
+  have h_int : interior (nonnegOrthant p) = ⋂ i : Fin p, {y : Vec p | 0 < y i} := by
+    rw [h_nonneg]
+    simp [h_coord]
+  simp [IsInteriorPoint, h_int, Set.mem_iInter, Set.mem_setOf_eq]
 
 /-! ## Standard Basis as Finset -/
 

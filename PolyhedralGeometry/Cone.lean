@@ -27,9 +27,12 @@ def isConicalCombo (x : V) : Prop :=
 def isConicalCombo_aux' (x : V) (n : ℕ) (a : ℕ → ℝ) (v : ℕ → V) : Prop :=
   (∀ i < n, a i = 0 ∨ 0 ≤ a i ∧ v i ∈ s) ∧ x = ∑ i ∈ Finset.range n, a i • v i
 
-axiom isConvexCone_setOf_isConicalCombo : IsConvexCone { x | isConicalCombo s x }
-
-axiom subset_setOf_isConicalCombo : s ⊆ { x | isConicalCombo s x }
+theorem subset_setOf_isConicalCombo : s ⊆ { x | isConicalCombo s x } := by
+  intro y hy
+  unfold isConicalCombo isConicalCombo'
+  use ULift ℕ, {1}, (fun _ => (1 : ℝ)), (fun _ => y)
+  simp
+  exact hy
 
 def isConicalCombo_aux (x : V) (n : ℕ) : Prop :=
   ∃ (a : ℕ → ℝ) (v : ℕ → V), isConicalCombo_aux' s x n a v
@@ -42,12 +45,6 @@ theorem isConvexCone_sInter {S : Set (Set V)} (h : ∀ s ∈ S, IsConvexCone s) 
       left := convex_sInter fun s hs ↦ (h s hs).1
       right.left := ⟨0, fun s hs ↦ zero_mem_of_cone (h s hs).2⟩
       right.right := fun c hc x hxS s hs ↦ (h s hs).2.2 c hc x (hxS s hs)
-
---not sure what the simps! attribute does
-@[simps! isClosed]
-def conicalHull' : ClosureOperator (Set V) := .ofCompletePred IsConvexCone fun _ ↦ isConvexCone_sInter
-
-axiom mem_conicalHull'_iff : x ∈ conicalHull' s ↔ isConicalCombo s x
 
 lemma cone_conicalHull (s : Set V) : Cone (conicalHull s) := by
   constructor
@@ -294,6 +291,17 @@ lemma conicalHull_smul.{u} (c : ℝ) (x : V) (hc : 0 ≤ c) (hx : x ∈ conicalH
     intro i _
     rw [smul_smul]
 
+theorem isConvexCone_setOf_isConicalCombo : IsConvexCone { x | isConicalCombo s x } := by
+  change IsConvexCone (conicalHull s)
+  refine ⟨?_, ?_⟩
+  · intro x hx y hy a b ha hb hab
+    have hx' : a • x ∈ conicalHull s := conicalHull_smul (s := s) a x ha hx
+    have hy' : b • y ∈ conicalHull s := conicalHull_smul (s := s) b y hb hy
+    simpa using (conicalHull_add (s := s) (x := a • x) (y := b • y) hx' hy')
+  · refine ⟨⟨0, zero_mem_conicalHull s⟩, ?_⟩
+    intro c hc x hx
+    exact conicalHull_smul (s := s) c x hc hx
+
 theorem conicalHull_mono.{u} (T : Set V) (h : s ⊆ T) :
     conicalHull.{_, u} s ⊆ conicalHull.{_, u} T := by
   intro x hx
@@ -307,8 +315,96 @@ theorem conicalHull_mono.{u} (T : Set V) (h : s ⊆ T) :
   · rfl
 
 lemma conicalHull_idempotent.{u} : conicalHull.{_, u} (conicalHull.{_, u} s) ⊆ conicalHull.{_, u} s := by
-  sorry
+  classical
+  rintro x ⟨ι, t, a, v, h_av, rfl⟩
+  have h_term : ∀ i ∈ t, a i • v i ∈ conicalHull s := by
+    intro i hi
+    rcases h_av i hi with h_zero | ⟨h_nonneg, h_mem⟩
+    · have h0 : (0 : V) ∈ conicalHull s := zero_mem_conicalHull s
+      simpa [h_zero] using h0
+    · exact conicalHull_smul (s := s) (c := a i) (x := v i) h_nonneg h_mem
+  have h_sum :
+      ∀ t : Finset ι, (∀ i ∈ t, a i • v i ∈ conicalHull s) →
+        (∑ i ∈ t, a i • v i) ∈ conicalHull s := by
+    classical
+    intro t
+    refine Finset.induction_on t ?base ?step
+    · intro _
+      simp [zero_mem_conicalHull]
+    · intro i t hi ih ht
+      have h_i : a i • v i ∈ conicalHull s := ht i (by simp [hi])
+      have h_t : ∀ j ∈ t, a j • v j ∈ conicalHull s := by
+        intro j hj
+        exact ht j (by simp [hj])
+      have h_rest : (∑ j ∈ t, a j • v j) ∈ conicalHull s := ih h_t
+      have h_add :
+          a i • v i + ∑ j ∈ t, a j • v j ∈ conicalHull s :=
+        conicalHull_add (s := s) (x := a i • v i) (y := ∑ j ∈ t, a j • v j) h_i h_rest
+      simpa [Finset.sum_insert, hi] using h_add
+  exact h_sum t h_term
+
+--not sure what the simps! attribute does
+@[simps! isClosed]
+def conicalHull' : ClosureOperator (Set V) :=
+  ClosureOperator.mk₂ (fun s => conicalHull.{_, 0} s)
+    (fun s => subset_conicalHull_of_set s)
+    (by
+      intro s t hst
+      exact (conicalHull_mono (s := s) (T := conicalHull t) hst).trans
+        (conicalHull_idempotent (s := t)))
+
+theorem mem_conicalHull'_iff {x : V} : x ∈ conicalHull' s ↔ isConicalCombo.{_, 0} s x := by
+  rfl
 
 -- might be useful:
-axiom polyhedralCone_as_convexCone (s : Set V) :
-  PolyhedralCone s → ∃ s' : ConvexCone ℝ V, s'.carrier = s
+theorem polyhedralCone_as_convexCone (s : Set V) :
+  PolyhedralCone s → ∃ s' : ConvexCone ℝ V, s'.carrier = s := by
+  intro h_poly
+  rcases h_poly with ⟨h_isPoly, h_cone⟩
+  have h_convex : Convex ℝ s := by
+    rcases h_isPoly with ⟨ι, H, _hfin, h_half, h_eq⟩
+    have h_convex_H : ∀ i, Convex ℝ (H i) := by
+      intro i
+      rcases h_half i with ⟨f, c, h_eq⟩
+      have h_convex_half : Convex ℝ {x : V | f x ≤ c} := by
+        intro x hx y hy a b ha hb hab
+        have hx' : f x ≤ c := hx
+        have hy' : f y ≤ c := hy
+        have hlin : f (a • x + b • y) = a * f x + b * f y := by
+          simp [LinearMap.map_add, smul_eq_mul]
+        have h1 : a * f x + b * f y ≤ a * c + b * c := by
+          nlinarith [hx', hy', ha, hb]
+        calc
+          f (a • x + b • y) = a * f x + b * f y := hlin
+          _ ≤ a * c + b * c := h1
+          _ = c := by
+            calc
+              a * c + b * c = (a + b) * c := by ring
+              _ = 1 * c := by simp [hab]
+              _ = c := by ring
+      rw [h_eq]
+      exact h_convex_half
+    rw [h_eq]
+    exact convex_iInter h_convex_H
+  refine ⟨{ carrier := s, smul_mem' := ?_, add_mem' := ?_ }, rfl⟩
+  · intro c hc x hx
+    exact h_cone.2 c (le_of_lt hc) x hx
+  · intro x hx y hy
+    have h_mid : ( (1 / 2 : ℝ) • x + (1 / 2 : ℝ) • y ) ∈ s := by
+      have := h_convex hx hy (a := (1 / 2 : ℝ)) (b := (1 / 2 : ℝ)) (by norm_num) (by norm_num)
+        (by norm_num)
+      simpa using this
+    have h_scaled :
+        (2 : ℝ) • ((1 / 2 : ℝ) • x + (1 / 2 : ℝ) • y) ∈ s :=
+      h_cone.2 2 (by norm_num) _ h_mid
+    have h_sum :
+        (2 : ℝ) • ((1 / 2 : ℝ) • x + (1 / 2 : ℝ) • y) = x + y := by
+      calc
+        (2 : ℝ) • ((1 / 2 : ℝ) • x + (1 / 2 : ℝ) • y)
+            = (2 : ℝ) • ((1 / 2 : ℝ) • x) + (2 : ℝ) • ((1 / 2 : ℝ) • y) := by
+              simp [smul_add]
+        _ = ((2 : ℝ) * (1 / 2 : ℝ)) • x + ((2 : ℝ) * (1 / 2 : ℝ)) • y := by
+              simp [smul_smul]
+        _ = x + y := by
+              simp
+    simpa [h_sum] using h_scaled

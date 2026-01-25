@@ -1,5 +1,6 @@
 import PolyhedralGeometry.Defs
 import PolyhedralGeometry.DualTopology
+import Mathlib.Analysis.LocallyConvex.Separation
 import Mathlib.LinearAlgebra.Dual.Defs
 import Mathlib.LinearAlgebra.Dual.Lemmas
 --import Mathlib.Topology.Bases
@@ -162,7 +163,9 @@ theorem LinearEquiv.preimage_eq_iff_eq_image {R α β : Type*} [Semiring R] [Add
 
 variable [TopologicalSpace V] [IsDualTopology ℝ V]
 
-theorem polar_eq_double_iff [FiniteDimensional ℝ V] (s : Set V) : evalEquiv ℝ V '' s = sᵒᵒ ↔ 0 ∈ s ∧ Convex ℝ s ∧ IsClosed s := by
+theorem polar_eq_double_iff [FiniteDimensional ℝ V] [IsTopologicalAddGroup V] [ContinuousSMul ℝ V]
+    [LocallyConvexSpace ℝ V] (s : Set V) :
+    evalEquiv ℝ V '' s = sᵒᵒ ↔ 0 ∈ s ∧ Convex ℝ s ∧ IsClosed s := by
   let _ := EvalTopology ℝ V
   let _ : IsEvalTopology ℝ V := { eq_EvalTopology' := by rfl }
   let φ := evalEquivTop ℝ V
@@ -196,12 +199,37 @@ theorem polar_eq_double_iff [FiniteDimensional ℝ V] (s : Set V) : evalEquiv �
     . intro h
       use φ.symm x'
       constructor
-      . set x := φ.symm x'
-        have : x' = φ x := by simp [x]
-        rw [this] at h
-        simp [φ] at h
-        sorry
-      . simp only [φ]
+      · set x := φ.symm x'
+        by_contra hx_not
+        obtain ⟨f, u, hf_s, hux⟩ :=
+          geometric_hahn_banach_closed_point (E := V) (s := s) h_convex h_closed hx_not
+        have hu_pos : 0 < u := by
+          have h0 := hf_s 0 h_zero
+          simpa using h0
+        let g : StrongDual ℝ V := (1 / u) • f
+        have hg_mem : (g : Dual ℝ V) ∈ sᵒ := by
+          intro y hy
+          have hfy : f y < u := hf_s y hy
+          have hlt : (1 / u) * f y < 1 := by
+            have : f y / u < 1 := (div_lt_one hu_pos).2 hfy
+            simpa [div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc] using this
+          have : (g : Dual ℝ V) y < 1 := by
+            simpa [g, ContinuousLinearMap.smul_apply, smul_eq_mul] using hlt
+          exact le_of_lt this
+        have hg_x : 1 < (g : Dual ℝ V) x := by
+          have : 1 < f x / u := (one_lt_div hu_pos).2 hux
+          have : 1 < (1 / u) * f x := by
+            simpa [div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc] using this
+          simpa [g, ContinuousLinearMap.smul_apply, smul_eq_mul] using this
+        have hx_le : (g : Dual ℝ V) x ≤ 1 := by
+          have h' := h (g : Dual ℝ V) hg_mem
+          have hx_eval : x' (g : Dual ℝ V) = (g : Dual ℝ V) x := by
+            symm
+            simpa [φ, x] using
+              (apply_evalEquivTop_symm_apply (R := ℝ) (M := V) (f := (g : Dual ℝ V)) (g := x'))
+          simpa [hx_eval] using h'
+        exact (not_lt_of_ge hx_le hg_x)
+      · simp only [φ]
         ext f
         simp only [evalEquiv_apply, Dual.eval_apply, apply_evalEquivTop_symm_apply, φ]
         

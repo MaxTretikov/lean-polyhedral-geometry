@@ -71,6 +71,35 @@ def IsGeneratorSet (G : Set (Vec p)) (C : Set (Vec p)) : Prop :=
 
 theorem orthant_generated_by_std_basis :
     IsGeneratorSet (StandardBasisSet (p := p)) (OrthantSet (p := p)) := by
-  sorry
+  classical
+  ext x
+  constructor
+  · intro hx
+    use Fin p, Finset.univ, x, (EuclideanSpace.basisFun (Fin p) ℝ)
+    refine ⟨?_, ?_, ?_⟩
+    · intro i _
+      exact hx i
+    · intro i _
+      exact ⟨i, rfl⟩
+    · have hxsum : x = ∑ i, x i • EuclideanSpace.basisFun (Fin p) ℝ i := by
+        ext k
+        simpa [EuclideanSpace.basisFun_apply, smul_eq_mul] using
+          (congrArg (fun f => f k) (pi_eq_sum_univ' (x := x.ofLp)))
+      simpa using hxsum
+  · intro hx
+    rcases hx with ⟨ι, t, c, v, h_c, h_v, rfl⟩
+    intro k
+    have h_nonneg : ∀ i ∈ t, 0 ≤ c i * v i k := by
+      intro i hi
+      have hc : 0 ≤ c i := h_c i hi
+      have hv : 0 ≤ v i k := by
+        rcases h_v i hi with ⟨j, h_eq⟩
+        simpa [h_eq] using (basisFun_nonneg (p := p) j) k
+      exact mul_nonneg hc hv
+    have h_sum : (∑ i ∈ t, c i • v i) k = ∑ i ∈ t, c i * v i k := by
+      simp [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
+    have : 0 ≤ ∑ i ∈ t, c i * v i k := by
+      exact Finset.sum_nonneg h_nonneg
+    simpa [h_sum] using this
 
 end

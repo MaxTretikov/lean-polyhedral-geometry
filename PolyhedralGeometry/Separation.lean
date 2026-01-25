@@ -118,12 +118,6 @@ theorem hyperplane_separation  (A B : Set V) (hA : Convex ℝ A) (hB : Convex �
         _ = ⟪b'-a', b'⟫ - ⟪b'-a', a'⟫ := by rw [← inner_sub_left]
         _ = f b' - f a' := by simp[f]
     linarith
-  -- use this to simplify minf and minf'
-  -- maybe move this to a separate lemma eventually? probably just requires convexity of A and B
-  have foo {a₀ b₀ b : V} (h_a₀ : a₀ ∈ A) (h_b₀ : b₀ ∈ B)
-      (h_infDist : ∀ a ∈ A, ∀ b ∈ B, dist a₀ b₀ ≤ dist a b) (h_b : b ∈ B) :
-      ⟪b₀ - a₀, b₀⟫ ≤ ⟪b₀ - a₀, b⟫ := by
-    sorry
   have minf : ∀ b₀ ∈ B, f b₀ ≥ f b' := by
     intro b₀ hb₀
     have lin_dep (γ : ℝ) : (0 ≤ γ) ∧ (γ ≤ 1) → γ • b' + (1-γ) • b₀ ∈ B :=

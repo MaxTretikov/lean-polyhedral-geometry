@@ -240,6 +240,7 @@ open Set Module
 
 private abbrev d_subsets (s : Set V) := {t : Finset V | (↑t : Set V) ⊆ s ∧ t.card ≤ finrank ℝ V}
 
+omit [DecidableEq V] [FiniteDimensional ℝ V] in
 lemma d_subsets_finite (s : Set V) : s.Finite → (d_subsets s).Finite := by
   intro h_s
   classical
