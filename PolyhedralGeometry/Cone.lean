@@ -251,7 +251,64 @@ theorem conicalHull_preimage_subset_preimage_conicalHull (s : Set W) : conicalHu
   · exact h₁
   rw [h₂]
   simp only [map_sum, map_smul, Function.comp_apply]
-  
+
+/-! ## Additional Conical Hull Properties -/
+
+lemma conicalHull_contains (g : V) (hg : g ∈ s) : g ∈ conicalHull s :=
+  subset_conicalHull_of_set s hg
+
+lemma conicalHull_add.{u} (x y : V) (hx : x ∈ conicalHull.{_, u} s) (hy : y ∈ conicalHull.{_, u} s) :
+    x + y ∈ conicalHull.{_, u} s := by
+  rcases hx with ⟨ι1, t1, a1, v1, h1, rfl⟩
+  rcases hy with ⟨ι2, t2, a2, v2, h2, rfl⟩
+  use ULift.{u} (ι1 ⊕ ι2), (t1.disjSum t2).map ⟨ULift.up, ULift.up_injective⟩
+  use fun i => Sum.elim a1 a2 i.down
+  use fun i => Sum.elim v1 v2 i.down
+  constructor
+  · intro i hi
+    simp only [Finset.mem_map, Function.Embedding.coeFn_mk, Finset.mem_disjSum] at hi
+    obtain ⟨j, hj, rfl⟩ := hi
+    cases j with
+    | inl j1 =>
+      rcases hj with ⟨k, hk, heq⟩ | ⟨k, _, heq⟩
+      · simp only [Sum.inl.injEq] at heq; subst heq; exact h1 k hk
+      · simp at heq
+    | inr j2 =>
+      rcases hj with ⟨k, _, heq⟩ | ⟨k, hk, heq⟩
+      · simp at heq
+      · simp only [Sum.inr.injEq] at heq; subst heq; exact h2 k hk
+  · simp only [Finset.sum_map, Function.Embedding.coeFn_mk, Finset.sum_disjSum,
+      Sum.elim_inl, Sum.elim_inr]
+
+lemma conicalHull_smul.{u} (c : ℝ) (x : V) (hc : 0 ≤ c) (hx : x ∈ conicalHull.{_, u} s) :
+    c • x ∈ conicalHull.{_, u} s := by
+  rcases hx with ⟨ι, t, a, v, h_av, rfl⟩
+  use ι, t, fun i => c * a i, v
+  constructor
+  · intro i hi
+    rcases h_av i hi with h | ⟨h₁, h₂⟩
+    · left; simp [h]
+    · right; exact ⟨mul_nonneg hc h₁, h₂⟩
+  · rw [Finset.smul_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    rw [smul_smul]
+
+theorem conicalHull_mono.{u} (T : Set V) (h : s ⊆ T) :
+    conicalHull.{_, u} s ⊆ conicalHull.{_, u} T := by
+  intro x hx
+  obtain ⟨ι, t, c, v, h_combo, rfl⟩ := hx
+  use ι, t, c, v
+  constructor
+  · intro i hi
+    rcases h_combo i hi with h_zero | ⟨h_nonneg, h_mem⟩
+    · left; exact h_zero
+    · right; exact ⟨h_nonneg, h h_mem⟩
+  · rfl
+
+lemma conicalHull_idempotent.{u} : conicalHull.{_, u} (conicalHull.{_, u} s) ⊆ conicalHull.{_, u} s := by
+  sorry
+
 -- might be useful:
 axiom polyhedralCone_as_convexCone (s : Set V) :
   PolyhedralCone s → ∃ s' : ConvexCone ℝ V, s'.carrier = s

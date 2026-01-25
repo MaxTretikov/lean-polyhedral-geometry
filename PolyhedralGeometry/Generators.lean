@@ -2,10 +2,10 @@
   Generators.lean
 
   Generator set structure for representing cones via their generating vectors.
-  Conical hull definitions and properties.
+  Uses conical hull definitions from Cone.lean.
 -/
 
-import PolyhedralGeometry.Defs
+import PolyhedralGeometry.Cone
 import Mathlib.Analysis.InnerProductSpace.Basic
 import Mathlib.Analysis.InnerProductSpace.Orthogonal
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
@@ -41,66 +41,89 @@ attribute [instance] GeneratorSet.instDecEq
 
 variable {p : ℕ}
 
-/-! ## Conical Hull Definition -/
+/-! ## IsGeneratorSet and conicalHull equivalence -/
 
-/-- The conical hull of a set: all non-negative linear combinations. -/
-def ConicalHullSet (G : Set (Vec p)) : Set (Vec p) :=
-  {x | ∃ (ι : Type) (s : Finset ι) (c : ι → ℝ) (v : ι → Vec p),
-        (∀ i ∈ s, 0 ≤ c i) ∧ (∀ i ∈ s, v i ∈ G) ∧ x = ∑ i ∈ s, c i • v i}
-
+/-- IsGeneratorSet G C is equivalent to C = conicalHull G.
+    Note: IsGeneratorSet uses ι : Type (universe 0), while conicalHull uses Type*.
+    We use conicalHull.{_,0} to match the universe. -/
 theorem isGeneratorSet_iff_eq_conicalHull (G : Set (Vec p)) (C : Set (Vec p)) :
-    IsGeneratorSet G C ↔ C = ConicalHullSet G := Iff.rfl
-
-/-! ## Conical Hull Properties -/
-
-lemma conicalHull_contains (G : Set (Vec p)) (g : Vec p) (hg : g ∈ G) : g ∈ ConicalHullSet G := by
-  use Unit, {Unit.unit}, (fun _ => 1), (fun _ => g)
-  simp [hg]
-
-lemma conicalHull_add (G : Set (Vec p)) (x y : Vec p) (hx : x ∈ ConicalHullSet G) (hy : y ∈ ConicalHullSet G) :
-    x + y ∈ ConicalHullSet G := by
-  rcases hx with ⟨ι1, s1, c1, v1, hc1, hv1, rfl⟩
-  rcases hy with ⟨ι2, s2, c2, v2, hc2, hv2, rfl⟩
-  use Sum ι1 ι2, s1.disjSum s2
-  use Sum.elim c1 c2
-  use Sum.elim v1 v2
+    IsGeneratorSet G C ↔ C = conicalHull.{_, 0} G := by
   constructor
-  · intro i hi; cases i <;> simp at hi <;> [apply hc1; apply hc2] <;> assumption
-  constructor
-  · intro i hi; cases i <;> simp at hi <;> [apply hv1; apply hv2] <;> assumption
-  · simp
-
-lemma conicalHull_smul (G : Set (Vec p)) (c : ℝ) (x : Vec p) (hc : 0 ≤ c) (hx : x ∈ ConicalHullSet G) :
-    c • x ∈ ConicalHullSet G := by
-  rcases hx with ⟨ι, s, c', v, hc', hv, rfl⟩
-  use ι, s, (fun i => c * c' i), v
-  constructor
-  · intro i hi; apply mul_nonneg hc (hc' i hi)
-  constructor
-  · exact hv
-  · simp only [Finset.smul_sum]
-    apply Finset.sum_congr rfl
-    intro i _
-    rw [smul_smul]
-
-theorem conicalHull_mono (S T : Set (Vec p)) (h : S ⊆ T) :
-    ConicalHullSet S ⊆ ConicalHullSet T := by
-  intro x hx
-  obtain ⟨ι, s, c, v, h_nonneg, h_mem, rfl⟩ := hx
-  have h_mem_T : ∀ i ∈ s, v i ∈ T := fun i hi => h ( h_mem i hi )
-  exact ⟨ι, s, c, v, h_nonneg, h_mem_T, rfl⟩
-
-lemma conicalHull_idempotent (S : Set (Vec p)) : ConicalHullSet (ConicalHullSet S) ⊆ ConicalHullSet S := by
-  sorry
+  · intro h
+    ext x
+    constructor
+    · intro hx
+      rw [h] at hx
+      obtain ⟨ι, s, c, v, hc, hv, rfl⟩ := hx
+      use ι, s, c, v
+      constructor
+      · intro i hi
+        right
+        exact ⟨hc i hi, hv i hi⟩
+      · rfl
+    · intro hx
+      rw [h]
+      obtain ⟨ι, s, c, v, hcv, rfl⟩ := hx
+      classical
+      let s' := s.filter (fun i => c i ≠ 0)
+      use ι, s', c, v
+      refine ⟨?_, ?_, ?_⟩
+      · intro i hi
+        rw [Finset.mem_filter] at hi
+        rcases hcv i hi.1 with h_zero | ⟨h_nonneg, _⟩
+        · exact absurd h_zero hi.2
+        · exact h_nonneg
+      · intro i hi
+        rw [Finset.mem_filter] at hi
+        rcases hcv i hi.1 with h_zero | ⟨_, h_mem⟩
+        · exact absurd h_zero hi.2
+        · exact h_mem
+      · symm
+        apply Finset.sum_subset (Finset.filter_subset _ _)
+        intro i hi hni
+        rw [Finset.mem_filter, not_and, not_not] at hni
+        simp [hni hi]
+  · intro h
+    rw [h]
+    ext x
+    constructor
+    · intro hx
+      obtain ⟨ι, s, c, v, hcv, rfl⟩ := hx
+      classical
+      let s' := s.filter (fun i => c i ≠ 0)
+      use ι, s', c, v
+      refine ⟨?_, ?_, ?_⟩
+      · intro i hi
+        rw [Finset.mem_filter] at hi
+        rcases hcv i hi.1 with h_zero | ⟨h_nonneg, _⟩
+        · exact absurd h_zero hi.2
+        · exact h_nonneg
+      · intro i hi
+        rw [Finset.mem_filter] at hi
+        rcases hcv i hi.1 with h_zero | ⟨_, h_mem⟩
+        · exact absurd h_zero hi.2
+        · exact h_mem
+      · symm
+        apply Finset.sum_subset (Finset.filter_subset _ _)
+        intro i hi hni
+        rw [Finset.mem_filter, not_and, not_not] at hni
+        simp [hni hi]
+    · intro hx
+      obtain ⟨ι, s, c, v, hc, hv, rfl⟩ := hx
+      use ι, s, c, v
+      constructor
+      · intro i hi
+        right
+        exact ⟨hc i hi, hv i hi⟩
+      · rfl
 
 theorem conicalHull_subset_generated_cone (GenSets : List (Set (Vec p))) (C : Set (Vec p)) (S : Set (Vec p))
     (h_mem : S ∈ GenSets)
     (h_gen : IsGeneratorSet (⋃₀ {T | T ∈ GenSets}) C) :
-    ConicalHullSet S ⊆ C :=
-  h_gen.symm ▸ conicalHull_mono _ _ fun x hx => Set.mem_sUnion.mpr ⟨ S, h_mem, hx ⟩
-
-theorem zero_in_conicalHull (G : Set (Vec p)) : 0 ∈ ConicalHullSet G :=
-  ⟨ PEmpty, ∅, 0, 0, by norm_num ⟩
+    conicalHull.{_, 0} S ⊆ C := by
+  have h := (isGeneratorSet_iff_eq_conicalHull _ _).mp h_gen
+  rw [h]
+  exact conicalHull_mono S _ fun x hx => Set.mem_sUnion.mpr ⟨ S, h_mem, hx ⟩
 
 /-! ## Hyperplane -/
 
