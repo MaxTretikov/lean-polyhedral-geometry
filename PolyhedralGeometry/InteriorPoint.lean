@@ -504,14 +504,14 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
   all_goals simp only [Option.some.injEq] at h
   · -- Case: pos and neg empty, y = zeros.sum
     set zeros := zeroGeneratorsList genList b with h_zeros
-    have hy : y = zeros.sum := by simpa [h_zeros] using h
+    have hy : zeros.sum = y := by simpa [h_zeros] using h
     rcases h_pos k with ⟨i, hi, hi_pos⟩
     have hgenList_mem : G.vec i ∈ genList := by
-      exact List.mem_map_of_mem _ (Finset.mem_toList.mpr hi)
+      simpa [h_genList] using (List.mem_map.mpr ⟨i, Finset.mem_toList.mpr hi, rfl⟩)
     have hinner_zero : ⟪b, G.vec i⟫_ℝ = 0 := by
       by_contra hne
       have hsign : ⟪b, G.vec i⟫_ℝ > 0 ∨ ⟪b, G.vec i⟫_ℝ < 0 :=
-        lt_or_gt_of_ne hne
+        lt_or_gt_of_ne (by simpa [ne_comm] using hne)
       cases hsign with
       | inl hpos =>
           have hpos_mem : G.vec i ∈ pos := by
@@ -529,7 +529,7 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
       simp [zeroGeneratorsList, h_zeros, hgenList_mem, hinner_zero]
     have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
       intro g hg
-      simp [h_genList] at hg
+      simp only [h_genList, List.mem_map] at hg
       obtain ⟨i, hi, rfl⟩ := hg
       exact h_gen i (Finset.mem_toList.mp hi)
     have h_zeros_nonneg : ∀ g ∈ zeros, g ∈ nonnegOrthant p := by
@@ -550,10 +550,10 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
       simpa [h_sum] using this
     simpa [hy] using hpos_sum
   · -- Case: pos and neg non-empty, y = FarkasPoint genList b
-    have hy : y = FarkasPoint genList b := by simpa using h
+    have hy : y = FarkasPoint genList b := by simpa using h.symm
     have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
       intro g hg
-      simp [h_genList] at hg
+      simp only [h_genList, List.mem_map] at hg
       obtain ⟨i, hi, rfl⟩ := hg
       exact h_gen i (Finset.mem_toList.mp hi)
     simp only [List.isEmpty_iff] at h3
@@ -627,7 +627,7 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
       linarith
     rcases h_pos k with ⟨i, hi, hi_pos⟩
     have hgenList_mem : G.vec i ∈ genList := by
-      exact List.mem_map_of_mem _ (Finset.mem_toList.mpr hi)
+      simpa [h_genList] using (List.mem_map.mpr ⟨i, Finset.mem_toList.mpr hi, rfl⟩)
     by_cases hpos : ⟪b, G.vec i⟫_ℝ > 0
     · have hpos_mem : G.vec i ∈ pos := by
         simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
