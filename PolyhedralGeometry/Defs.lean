@@ -1,4 +1,4 @@
-import Mathlib.Analysis.InnerProductSpace.PiL2
+import LinearAlgebraHelpers.Defs
 
 noncomputable section
 
@@ -9,6 +9,8 @@ open scoped Real
 open scoped Nat
 open scoped Classical
 open scoped Pointwise
+
+-- Vec, Mat, nonnegOrthant are imported from LinearAlgebraHelpers.Defs
 
 section
 variable {V : Type*} [AddCommMonoid V] [Module ℝ V] (s : Set V)
@@ -43,12 +45,6 @@ end
 
 section
 variable {p : ℕ}
-
-/-- The standard Euclidean space ℝ^p. -/
-abbrev Vec (p : ℕ) := EuclideanSpace ℝ (Fin p)
-
-/-- The nonnegative orthant: all vectors with nonnegative coordinates. -/
-def nonnegOrthant (p : ℕ) : Set (Vec p) := { y | ∀ i, 0 ≤ y i }
 
 /-- The set of standard basis vectors. -/
 def StandardBasisSet : Set (Vec p) := Set.range (EuclideanSpace.basisFun (Fin p) ℝ)
