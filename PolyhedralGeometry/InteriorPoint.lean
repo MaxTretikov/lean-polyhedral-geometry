@@ -741,4 +741,22 @@ lemma g_vec_nonneg (b : Vec p) (i j : Fin p) : g_vec b i j ∈ nonnegOrthant p :
     EuclideanSpace.single_apply, smul_eq_mul]
   split_ifs <;> linarith [abs_nonneg (b j), abs_nonneg (b i)]
 
+/-!
+## Interior Point from Farkas Combination
+
+The Farkas combination produces an interior point of the cone when generators
+cover all coordinates with positive entries.
+-/
+
+/-- The Farkas combination produces an interior point when generators cover all coordinates.
+    This combines `farkasCombination_pos_coords` with the characterization of interior points
+    via strictly positive coordinates. -/
+theorem farkasCombination_interior {G : GeneratorSet p} {b y : Vec p}
+    (hfb : farkasCombination G b = some y)
+    (h_gen : ∀ i ∈ G.s, G.vec i ∈ nonnegOrthant p)
+    (h_pos : ∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k) :
+    IsInteriorPoint y := by
+  rw [isInteriorPoint_iff_all_pos]
+  exact farkasCombination_pos_coords hfb h_gen h_pos
+
 end InteriorPoint
