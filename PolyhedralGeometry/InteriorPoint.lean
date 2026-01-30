@@ -415,12 +415,10 @@ def farkasCombination (G : GeneratorSet p) (b : Vec p) : Option (Vec p) :=
   let genList := G.s.toList.map G.vec
   let pos := posGeneratorsList genList b
   let neg := negGeneratorsList genList b
-  if pos.isEmpty ∧ neg.isEmpty then
-    let zeros := zeroGeneratorsList genList b
+  let zeros := zeroGeneratorsList genList b
+  if pos.isEmpty ∨ neg.isEmpty then
     if zeros.isEmpty then none
     else some zeros.sum
-  else if pos.isEmpty ∨ neg.isEmpty then
-    none
   else
     some (FarkasPoint genList b)
 
@@ -428,20 +426,43 @@ def farkasCombination (G : GeneratorSet p) (b : Vec p) : Option (Vec p) :=
 theorem farkasCombination_in_hyperplane {G : GeneratorSet p} {b y : Vec p} :
     farkasCombination G b = some y → ⟪b, y⟫_ℝ = 0 := by
   intro h
-  simp only [farkasCombination] at h
   set genList := G.s.toList.map G.vec with h_genList
   set pos := posGeneratorsList genList b with h_pos
   set neg := negGeneratorsList genList b with h_neg
-  split_ifs at h with h1 h2 h3
-  all_goals simp only [Option.some.injEq] at h
-  · rw [← h, inner_list_sum]
-    apply List.sum_eq_zero
-    intro x hx
-    simp only [List.mem_map] at hx
-    obtain ⟨g, hg, rfl⟩ := hx
-    simp only [zeroGeneratorsList, List.mem_filter, decide_eq_true_eq] at hg
-    exact hg.2
-  · rw [← h]
+  set zeros := zeroGeneratorsList genList b with h_zeros
+  by_cases hpn : pos = [] ∨ neg = []
+  · by_cases hzero : zeros = []
+    · have hfb : farkasCombination G b = none := by
+        simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      have : (some y = none) := by
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = none := hfb
+      cases this
+    · have hfb : farkasCombination G b = some zeros.sum := by
+        simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      have hy : y = zeros.sum := by
+        apply Option.some.inj
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = some zeros.sum := hfb
+      rw [hy, inner_list_sum]
+      apply List.sum_eq_zero
+      intro x hx
+      simp only [List.mem_map] at hx
+      obtain ⟨g, hg, rfl⟩ := hx
+      simp [h_zeros, zeroGeneratorsList, List.mem_filter, decide_eq_true_eq] at hg
+      exact hg.2
+  · have hfb : farkasCombination G b = some (FarkasPoint genList b) := by
+      simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, List.isEmpty_iff, hpn]
+    have hy : y = FarkasPoint genList b := by
+      apply Option.some.inj
+      calc
+        some y = farkasCombination G b := by simpa using h.symm
+        _ = some (FarkasPoint genList b) := hfb
+    rw [hy]
     apply farkas_in_hyperplane
 
 /-- The Farkas combination produces a point in the cone. -/
@@ -450,29 +471,52 @@ theorem farkasCombination_nonneg {G : GeneratorSet p} {b y : Vec p} :
     (∀ i ∈ G.s, G.vec i ∈ nonnegOrthant p) →
     y ∈ nonnegOrthant p := by
   intro h h_gen
-  simp only [farkasCombination] at h
   set genList := G.s.toList.map G.vec with h_genList
   set pos := posGeneratorsList genList b with h_pos
   set neg := negGeneratorsList genList b with h_neg
+  set zeros := zeroGeneratorsList genList b with h_zeros
   -- All generators in genList are in nonnegOrthant
   have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
     intro g hg
     simp only [h_genList, List.mem_map] at hg
     obtain ⟨i, hi, rfl⟩ := hg
     exact h_gen i (Finset.mem_toList.mp hi)
-  split_ifs at h with h1 h2 h3
-  all_goals simp only [Option.some.injEq] at h
-  · -- Case: pos and neg are empty, y = zeros.sum
-    rw [← h]
-    intro k
-    rw [list_sum_coord]
-    apply List.sum_nonneg
-    intro x hx
-    obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
-    simp only [zeroGeneratorsList, List.mem_filter] at hg
-    exact h_gen_list g hg.1 k
-  · -- Case: pos and neg are non-empty, y = FarkasPoint genList b
-    rw [← h]
+  by_cases hpn : pos = [] ∨ neg = []
+  · by_cases hzero : zeros = []
+    · have hfb : farkasCombination G b = none := by
+        simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      have : (some y = none) := by
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = none := hfb
+      cases this
+    · have hfb : farkasCombination G b = some zeros.sum := by
+        simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      have hy : y = zeros.sum := by
+        apply Option.some.inj
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = some zeros.sum := hfb
+      -- Case: zeros nonempty, y = zeros.sum
+      rw [hy]
+      intro k
+      rw [list_sum_coord]
+      apply List.sum_nonneg
+      intro x hx
+      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+      simp [h_zeros, zeroGeneratorsList, List.mem_filter] at hg
+      exact h_gen_list g hg.1 k
+  · have hfb : farkasCombination G b = some (FarkasPoint genList b) := by
+      simp [farkasCombination, ← h_genList, ← h_pos, ← h_neg, List.isEmpty_iff, hpn]
+    have hy : y = FarkasPoint genList b := by
+      apply Option.some.inj
+      calc
+        some y = farkasCombination G b := by simpa using h.symm
+        _ = some (FarkasPoint genList b) := hfb
+    -- Case: pos and neg are non-empty, y = FarkasPoint genList b
+    rw [hy]
     exact farkas_in_cone genList b h_gen_list
 
 /-! ## Strengthened Farkas Combination Assumptions -/
@@ -481,81 +525,110 @@ theorem farkasCombination_pos_coords {G : GeneratorSet p} {b y : Vec p} :
     farkasCombination G b = some y →
     (∀ i ∈ G.s, G.vec i ∈ nonnegOrthant p) →
     (∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k) →
+    ((posGeneratorsList (G.s.toList.map G.vec) b).isEmpty ↔
+      (negGeneratorsList (G.s.toList.map G.vec) b).isEmpty) →
     ∀ k : Fin p, 0 < y k := by
   classical
-  intro h h_gen h_pos k
-  simp only [farkasCombination] at h
+  intro h h_gen h_pos h_bal k
   set genList := G.s.toList.map G.vec with h_genList
   set pos := posGeneratorsList genList b with h_posList
   set neg := negGeneratorsList genList b with h_negList
-  split_ifs at h with h1 h2 h3
-  all_goals simp only [Option.some.injEq] at h
-  · -- Case: pos and neg empty, y = zeros.sum
-    set zeros := zeroGeneratorsList genList b with h_zeros
-    have hy : y = zeros.sum := by simpa [h_zeros] using h.symm
-    rcases h_pos k with ⟨i, hi, hi_pos⟩
-    have hgenList_mem : G.vec i ∈ genList := by
-      simpa [h_genList] using (List.mem_map_of_mem (Finset.mem_toList.mpr hi))
-    have hinner_zero : ⟪b, G.vec i⟫_ℝ = 0 := by
-      by_contra hne
-      have hsign : ⟪b, G.vec i⟫_ℝ > 0 ∨ ⟪b, G.vec i⟫_ℝ < 0 := by
-        have hne' : 0 ≠ ⟪b, G.vec i⟫_ℝ := by
-          simpa [ne_comm] using hne
-        simpa using (lt_or_gt_of_ne hne')
-      cases hsign with
-      | inl hpos =>
-          have hpos_mem : G.vec i ∈ pos := by
-            simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
-          have hpos_nil : pos = [] := by
-            simpa [List.isEmpty_iff] using h1.1
-          rw [hpos_nil] at hpos_mem
-          cases hpos_mem
-      | inr hneg =>
-          have hneg_mem : G.vec i ∈ neg := by
-            simp [negGeneratorsList, h_negList, hgenList_mem, hneg]
-          have hneg_nil : neg = [] := by
-            simpa [List.isEmpty_iff] using h1.2
-          rw [hneg_nil] at hneg_mem
-          cases hneg_mem
-    have hzero_mem : G.vec i ∈ zeros := by
-      simp [zeroGeneratorsList, h_zeros, hgenList_mem, hinner_zero]
-    have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
-      intro g hg
-      simp [h_genList] at hg
-      obtain ⟨i, hi, rfl⟩ := hg
-      exact h_gen i hi
-    have h_zeros_nonneg : ∀ g ∈ zeros, g ∈ nonnegOrthant p := by
-      intro g hg
-      simp [h_zeros, zeroGeneratorsList] at hg
-      exact h_gen_list g hg.1
-    have h_coords_nonneg : ∀ x ∈ zeros.map (fun g => g k), 0 ≤ x := by
-      intro x hx
-      obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
-      exact (h_zeros_nonneg g hg) k
-    have h_coord_mem : (G.vec i k) ∈ zeros.map (fun g => g k) :=
-      List.mem_map.mpr ⟨G.vec i, hzero_mem, rfl⟩
-    have h_le : G.vec i k ≤ (zeros.map (fun g => g k)).sum :=
-      le_sum_of_mem h_coords_nonneg h_coord_mem
-    have h_sum : (zeros.sum) k = (zeros.map (fun g => g k)).sum := list_sum_coord zeros k
-    have hpos_sum : 0 < (zeros.sum) k := by
-      have := lt_of_lt_of_le hi_pos h_le
-      simpa [h_sum] using this
-    have hpos_sum' : 0 < y k := by
-      rw [hy]
-      exact hpos_sum
-    exact hpos_sum'
+  set zeros := zeroGeneratorsList genList b with h_zeros
+  have h_bal' : pos = [] ↔ neg = [] := by
+    simpa [List.isEmpty_iff, ← h_genList, ← h_posList, ← h_negList] using h_bal
+  by_cases hpn : pos = [] ∨ neg = []
+  · -- Balanced signs imply both empty in this branch.
+    have hpos_empty : pos = [] := by
+      cases hpn with
+      | inl hpos => exact hpos
+      | inr hneg => exact (h_bal'.mpr hneg)
+    have hneg_empty : neg = [] := h_bal'.mp hpos_empty
+    by_cases hzero : zeros = []
+    · have hfb : farkasCombination G b = none := by
+        simp [farkasCombination, ← h_genList, ← h_posList, ← h_negList, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      have : (some y = none) := by
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = none := hfb
+      cases this
+    · have hfb : farkasCombination G b = some zeros.sum := by
+        simp [farkasCombination, ← h_genList, ← h_posList, ← h_negList, ← h_zeros, List.isEmpty_iff,
+          hpn, hzero]
+      -- Case: pos and neg empty, y = zeros.sum
+      have hy : y = zeros.sum := by
+        apply Option.some.inj
+        calc
+          some y = farkasCombination G b := by simpa using h.symm
+          _ = some zeros.sum := hfb
+      rcases h_pos k with ⟨i, hi, hi_pos⟩
+      have hgenList_mem : G.vec i ∈ genList := by
+        simpa [h_genList] using (List.mem_map_of_mem (Finset.mem_toList.mpr hi))
+      have hinner_zero : ⟪b, G.vec i⟫_ℝ = 0 := by
+        by_contra hne
+        have hsign : ⟪b, G.vec i⟫_ℝ > 0 ∨ ⟪b, G.vec i⟫_ℝ < 0 := by
+          have hne' : 0 ≠ ⟪b, G.vec i⟫_ℝ := by
+            simpa [ne_comm] using hne
+          simpa using (lt_or_gt_of_ne hne')
+        cases hsign with
+        | inl hpos =>
+            have hpos_mem : G.vec i ∈ pos := by
+              simp [posGeneratorsList, h_posList, hgenList_mem, hpos]
+            have hpos_nil : pos = [] := hpos_empty
+            rw [hpos_nil] at hpos_mem
+            cases hpos_mem
+        | inr hneg =>
+            have hneg_mem : G.vec i ∈ neg := by
+              simp [negGeneratorsList, h_negList, hgenList_mem, hneg]
+            have hneg_nil : neg = [] := hneg_empty
+            rw [hneg_nil] at hneg_mem
+            cases hneg_mem
+      have hzero_mem : G.vec i ∈ zeros := by
+        simp [zeroGeneratorsList, h_zeros, hgenList_mem, hinner_zero]
+      have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
+        intro g hg
+        simp [h_genList] at hg
+        obtain ⟨i, hi, rfl⟩ := hg
+        exact h_gen i hi
+      have h_zeros_nonneg : ∀ g ∈ zeros, g ∈ nonnegOrthant p := by
+        intro g hg
+        simp [h_zeros, zeroGeneratorsList] at hg
+        exact h_gen_list g hg.1
+      have h_coords_nonneg : ∀ x ∈ zeros.map (fun g => g k), 0 ≤ x := by
+        intro x hx
+        obtain ⟨g, hg, rfl⟩ := List.mem_map.mp hx
+        exact (h_zeros_nonneg g hg) k
+      have h_coord_mem : (G.vec i k) ∈ zeros.map (fun g => g k) :=
+        List.mem_map.mpr ⟨G.vec i, hzero_mem, rfl⟩
+      have h_le : G.vec i k ≤ (zeros.map (fun g => g k)).sum :=
+        le_sum_of_mem h_coords_nonneg h_coord_mem
+      have h_sum : (zeros.sum) k = (zeros.map (fun g => g k)).sum := list_sum_coord zeros k
+      have hpos_sum : 0 < (zeros.sum) k := by
+        have := lt_of_lt_of_le hi_pos h_le
+        simpa [h_sum] using this
+      have hpos_sum' : 0 < y k := by
+        rw [hy]
+        exact hpos_sum
+      exact hpos_sum'
   · -- Case: pos and neg non-empty, y = FarkasPoint genList b
-    have hy : y = FarkasPoint genList b := by simpa using h.symm
+    have hfb : farkasCombination G b = some (FarkasPoint genList b) := by
+      simp [farkasCombination, ← h_genList, ← h_posList, ← h_negList, List.isEmpty_iff, hpn]
+    have hy : y = FarkasPoint genList b := by
+      apply Option.some.inj
+      calc
+        some y = farkasCombination G b := by simpa using h.symm
+        _ = some (FarkasPoint genList b) := hfb
     have h_gen_list : ∀ g ∈ genList, g ∈ nonnegOrthant p := by
       intro g hg
       simp [h_genList] at hg
       obtain ⟨i, hi, rfl⟩ := hg
       exact h_gen i hi
-    simp only [List.isEmpty_iff] at h3
-    push_neg at h3
-    have hpos_ne : pos ≠ [] := h3.1
-    have hneg_ne : neg ≠ [] := h3.2
-    set zeros := zeroGeneratorsList genList b with h_zeros
+    have hpos_ne : pos ≠ [] := by
+      intro hpos_empty
+      exact hpn (Or.inl hpos_empty)
+    have hneg_ne : neg ≠ [] := by
+      intro hneg_empty
+      exact hpn (Or.inr hneg_empty)
     set P_val := (pos.map (fun g => |⟪b, g⟫_ℝ|)).sum with h_Pval
     set N_val := (neg.map (fun g => |⟪b, g⟫_ℝ|)).sum with h_Nval
     have h_decomp := farkas_decomposition genList b
@@ -754,9 +827,11 @@ cover all coordinates with positive entries.
 theorem farkasCombination_interior {G : GeneratorSet p} {b y : Vec p}
     (hfb : farkasCombination G b = some y)
     (h_gen : ∀ i ∈ G.s, G.vec i ∈ nonnegOrthant p)
-    (h_pos : ∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k) :
-    IsInteriorPoint y := by
-  rw [isInteriorPoint_iff_all_pos]
-  exact farkasCombination_pos_coords hfb h_gen h_pos
+    (h_pos : ∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k)
+    (h_bal : (posGeneratorsList (G.s.toList.map G.vec) b).isEmpty ↔
+      (negGeneratorsList (G.s.toList.map G.vec) b).isEmpty) :
+    IsStrictInteriorPoint y := by
+  rw [isStrictInteriorPoint_iff_all_pos]
+  exact farkasCombination_pos_coords hfb h_gen h_pos h_bal
 
 end InteriorPoint
