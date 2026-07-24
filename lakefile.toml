@@ -13,7 +13,7 @@ rev = "v4.27.0"
 
 [[require]]
 name = "LinearAlgebraHelpers"
-path = "https://github.com/MaxTretikov/lean-linear-algebra-helpers.git"
+path = "../lean-linear-algebra-helpers"
 
 [[lean_lib]]
 name = "PolyhedralGeometry"
