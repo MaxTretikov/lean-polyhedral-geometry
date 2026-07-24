@@ -149,14 +149,14 @@ def zeroGeneratorsList (G : List (Vec p)) (b : Vec p) : List (Vec p) :=
 def IsRayFaceIntersection (y η : Vec p) (F : Set (Vec p)) (ξ : Vec p) : Prop :=
   ∃ t : ℝ, t > 0 ∧ (∀ i, ξ i = y i + t * η i) ∧ ξ ∈ F
 
-/-- Strict interior point condition: y is in the topological interior of the nonnegative orthant.
+/-- Fully positive point condition: y is in the topological interior of the nonnegative orthant.
     This is stronger than the relative-interior notion used for IteratedIntersection in Proof.Defs,
     and is used when strict positivity of every coordinate is required. -/
-def IsStrictInteriorPoint (y : Vec p) : Prop := y ∈ interior (nonnegOrthant p)
+def IsFullyPositive (y : Vec p) : Prop := y ∈ interior (nonnegOrthant p)
 
 /-- Equivalent characterization: all coordinates strictly positive. -/
-lemma isStrictInteriorPoint_iff_all_pos (y : Vec p) :
-    IsStrictInteriorPoint y ↔ ∀ i : Fin p, 0 < y i := by
+lemma isFullyPositive_iff_all_pos (y : Vec p) :
+    IsFullyPositive y ↔ ∀ i : Fin p, 0 < y i := by
   classical
   have h_nonneg : nonnegOrthant p = ⋂ i : Fin p, {y : Vec p | 0 ≤ y i} := by
     ext z
@@ -178,7 +178,7 @@ lemma isStrictInteriorPoint_iff_all_pos (y : Vec p) :
   have h_int : interior (nonnegOrthant p) = ⋂ i : Fin p, {y : Vec p | 0 < y i} := by
     rw [h_nonneg]
     simp [h_coord]
-  simp [IsStrictInteriorPoint, h_int, Set.mem_iInter, Set.mem_setOf_eq]
+  simp [IsFullyPositive, h_int, Set.mem_iInter, Set.mem_setOf_eq]
 
 /-! ## Standard Basis as Finset -/
 

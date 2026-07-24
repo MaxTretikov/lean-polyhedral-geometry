@@ -830,8 +830,8 @@ theorem farkasCombination_interior {G : GeneratorSet p} {b y : Vec p}
     (h_pos : ∀ k : Fin p, ∃ i ∈ G.s, 0 < G.vec i k)
     (h_bal : (posGeneratorsList (G.s.toList.map G.vec) b).isEmpty ↔
       (negGeneratorsList (G.s.toList.map G.vec) b).isEmpty) :
-    IsStrictInteriorPoint y := by
-  rw [isStrictInteriorPoint_iff_all_pos]
+    IsFullyPositive y := by
+  rw [isFullyPositive_iff_all_pos]
   exact farkasCombination_pos_coords hfb h_gen h_pos h_bal
 
 end InteriorPoint

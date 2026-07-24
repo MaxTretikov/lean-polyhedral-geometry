@@ -1,3 +1,12 @@
 # lean-polyhedral-geometry
 
-Our goal is to formalize in Lean some basic results in polyhedral geometry, including the equivalence of definitions of a polyhedron in terms of halfspaces and convex hulls.  This project is associated with the Washington Experimental Mathematics Lab at the University of Washington.
+Lean formalization of basic polyhedral-geometry constructions used by the
+LP feasibility proofs, including:
+- cones and conical hulls
+- orthant and hyperplane intersections
+- generator sets and face representations
+- interior-point and Farkas-combination lemmas
+
+This library provides the geometric substrate for the cone-construction
+algorithm formalized in `ninth/proof`, and is intentionally scoped to the
+definitions and lemmas needed by that development.
